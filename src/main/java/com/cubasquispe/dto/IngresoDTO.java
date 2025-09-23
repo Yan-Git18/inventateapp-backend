@@ -1,0 +1,5 @@
+package com.cubasquispe.dto;
+
+public class IngresoDTO {
+    
+}
