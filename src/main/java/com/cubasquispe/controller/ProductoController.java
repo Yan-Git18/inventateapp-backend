@@ -1,103 +1,91 @@
 package com.cubasquispe.controller;
 
-import com.cubasquispe.assembler.ProductoAssembler;
+import com.cubasquispe.decorator.ProductoDecorator;
 import com.cubasquispe.dto.ProductoDTO;
-import com.cubasquispe.model.Categoria;
+import com.cubasquispe.exception.CustomSuccessRecord;
+import com.cubasquispe.factory.ProductoFactory;
 import com.cubasquispe.model.Producto;
-import com.cubasquispe.model.Proveedor;
 import com.cubasquispe.service.IProductoService;
-
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import java.net.URI;
+import jakarta.validation.Valid;
+
+import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.*;
+
 @RestController
-@RequiredArgsConstructor
 @RequestMapping("/productos")
+@RequiredArgsConstructor
 public class ProductoController {
 
     private final IProductoService service;
-    private final ProductoAssembler assembler;
 
     @GetMapping
     public ResponseEntity<CollectionModel<EntityModel<ProductoDTO>>> findAll() throws Exception {
-        List<Producto> list = service.findAll();
-        List<EntityModel<ProductoDTO>> productosResource = list.stream()
-                .map(producto -> {
+        List<EntityModel<ProductoDTO>> productos = service.findAll()
+                .stream()
+                .map(ProductoFactory::createDTO)
+                .map(dto -> {
                     try {
-                        return assembler.toModel(producto);
+                        return new ProductoDecorator(dto).withLinks();
                     } catch (Exception e) {
-                        throw new RuntimeException("No fue posible transformar la entidad Producto al formato DTO", e);
+                        throw new RuntimeException(e);
                     }
                 })
                 .toList();
-        return ResponseEntity.ok(CollectionModel.of(productosResource));
+
+        CollectionModel<EntityModel<ProductoDTO>> collection =
+                CollectionModel.of(productos,
+                        linkTo(methodOn(ProductoController.class).findAll()).withSelfRel()
+                );
+
+        return ResponseEntity.ok(collection);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<EntityModel<ProductoDTO>> findById(@PathVariable("id") Integer id) throws Exception {
-        Producto producto = service.findById(id);
-        EntityModel<ProductoDTO> productoResource = assembler.toModel(producto);
-        return ResponseEntity.ok(productoResource);
+        Producto obj = service.findById(id);
+        ProductoDTO dto = ProductoFactory.createDTO(obj);
+
+        return ResponseEntity.ok(new ProductoDecorator(dto).withLinks());
     }
 
     @PostMapping
-    public ResponseEntity<Void> save(@Valid @RequestBody ProductoDTO dto) throws Exception {
-        Producto obj = service.save(convertToEntity(dto, null));
-        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
-                .path("/{id}")
-                .buildAndExpand(obj.getId_producto())
-                .toUri();
-        return ResponseEntity.created(location).build();
+    public ResponseEntity<EntityModel<ProductoDTO>> save(@Valid @RequestBody ProductoDTO dto) throws Exception {
+        Producto obj = service.save(ProductoFactory.createEntity(dto));
+        ProductoDTO savedDto = ProductoFactory.createDTO(obj);
+
+        return ResponseEntity.created(
+                linkTo(methodOn(ProductoController.class).findById(savedDto.getIdProducto())).toUri()
+        ).body(new ProductoDecorator(savedDto).withLinks());
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<EntityModel<ProductoDTO>> update(@PathVariable("id") Integer id,
-            @Valid @RequestBody ProductoDTO dto) throws Exception {
-        Producto updated = service.update(convertToEntity(dto, id), id);
-        EntityModel<ProductoDTO> productoResource = assembler.toModel(updated);
-        return ResponseEntity.ok(productoResource);
+    public ResponseEntity<CustomSuccessRecord> update(@Valid @RequestBody ProductoDTO dto, @PathVariable("id") Integer id) throws Exception {
+        Producto obj = service.update(ProductoFactory.createEntity(dto), id);
+
+        return ResponseEntity.ok(new CustomSuccessRecord(
+                LocalDateTime.now(),
+                "Actualizado correctamente",
+                "Producto con ID " + id + " actualizado correctamente"
+        ));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable("id") Integer id) throws Exception {
+    public ResponseEntity<CustomSuccessRecord> delete(@PathVariable("id") Integer id) throws Exception {
         service.delete(id);
-        return ResponseEntity.noContent().build();
-    }
 
-    // 🔹 Conversión de DTO a Entidad (agrega proveedor y categoría por id)
-    private Producto convertToEntity(ProductoDTO dto, Integer id) {
-        Producto producto = new Producto();
-
-        producto.setId_producto(id);
-
-        producto.setNombre(dto.getNombre());
-        producto.setDescripcion(dto.getDescripcion());
-        producto.setCodigo_barra(dto.getCodigo_barra());
-        producto.setPrecio_compra(dto.getPrecio_compra());
-        producto.setPrecio_venta(dto.getPrecio_venta());
-        producto.setStock_actual(dto.getStock_actual());
-        producto.setStock_minimo(dto.getStock_minimo());
-        producto.setEstado(dto.getEstado());
-
-        // Proveedor
-        Proveedor proveedor = new Proveedor();
-        proveedor.setId_proveedor(dto.getIdProveedor());
-        producto.setProveedor(proveedor);
-
-        // Categoria
-        Categoria categoria = new Categoria();
-        categoria.setId_categoria(dto.getIdCategoria());
-        producto.setCategoria(categoria);
-
-        return producto;
+        return ResponseEntity.ok(new CustomSuccessRecord(
+                LocalDateTime.now(),
+                "Eliminado correctamente",
+                "Producto con ID " + id + " eliminado correctamente"
+        ));
     }
 
 }

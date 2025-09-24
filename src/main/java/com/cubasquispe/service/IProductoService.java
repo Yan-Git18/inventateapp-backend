@@ -2,6 +2,6 @@ package com.cubasquispe.service;
 
 import com.cubasquispe.model.Producto;
 
-public interface IProductoService extends IGenericService<Producto, Integer>{
+public interface IProductoService extends IGenericService<Producto, Integer> {
 
 }
