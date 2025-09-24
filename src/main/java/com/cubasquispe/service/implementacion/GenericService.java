@@ -11,7 +11,7 @@ public abstract class GenericService<T, ID> implements IGenericService<T, ID> {
     protected abstract IGenericRepository<T, ID> getRepo();
     @Override
     public void delete(ID id) throws Exception {
-        getRepo().findById(id).orElseThrow(()-> new ModelNotFoundException("ID NOT FOUND " + id));
+        getRepo().findById(id).orElseThrow(()-> new ModelNotFoundException("ID NO ENCONTRADO " + id));
         getRepo().deleteById(id); 
     }
 
@@ -22,7 +22,7 @@ public abstract class GenericService<T, ID> implements IGenericService<T, ID> {
 
     @Override
     public T findById(ID id) throws Exception {
-        return getRepo().findById(id).orElseThrow(()-> new ModelNotFoundException("ID NOT FOUND " + id));
+        return getRepo().findById(id).orElseThrow(()-> new ModelNotFoundException("ID NO ENCONTRADO " + id));
         //return getRepo().findById(id).orElse(null);
     }
 
@@ -33,7 +33,7 @@ public abstract class GenericService<T, ID> implements IGenericService<T, ID> {
 
     @Override
     public T update(T t, ID id) throws Exception {
-        getRepo().findById(id).orElseThrow(()-> new ModelNotFoundException("ID NOT FOUND " + id));
+        getRepo().findById(id).orElseThrow(()-> new ModelNotFoundException("ID NO ENCONTRADO " + id));
         return getRepo().save(t);
     }
 }
